@@ -1,11 +1,17 @@
 package com.kayyagari.resources;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,11 +21,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.kayyagari.db.dao.CustomerDao;
 import com.kayyagari.db.entities.Customer;
 import com.kayyagari.db.repos.CustomerCrudRepository;
+import com.kayyagari.db.repos.CustomerPagingAndSortingRepository;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -32,6 +40,9 @@ public class CustomerResource {
 
 	@Autowired
 	private CustomerCrudRepository crudRepo;
+
+	@Autowired
+	private CustomerPagingAndSortingRepository pagerRepo;
 
 	private static final Logger LOG = LoggerFactory.getLogger(CustomerResource.class);
 
@@ -79,5 +90,16 @@ public class CustomerResource {
 		LOG.debug("deleting cutomer with the given ID {}", id);
 		crudRepo.deleteById(id);
 		return ResponseEntity.ok().build();
+	}
+
+	@GetMapping("/fetch")
+	public ResponseEntity<Page<Customer>> fetch(@RequestParam(name = "pageNo", defaultValue = "0", required = false) Integer pageNo, 
+			@RequestParam(name = "pageSize", defaultValue = "10", required = false) Integer pageSize, 
+			@RequestParam(name = "sortField", defaultValue = "name", required = false) String sortField) {
+		PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(sortField));
+		Page<Customer> page = pagerRepo.findAll(pageRequest);
+//		List<Customer> lst = new ArrayList<Customer>();
+//		pagerRepo.findAll(pageRequest).forEach(c -> lst.add(c));
+		return ResponseEntity.ok(page);
 	}
 }

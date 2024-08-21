@@ -16,13 +16,14 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
 
 @Entity(name = "customer")
 public class Customer extends AuditableEntity {
 	@Column
+	@NotBlank
 	@Size(min = 2, max = 100, message = "customer's name should be between 2 to 100 characters in length")
 	private String name;
 	
@@ -31,7 +32,6 @@ public class Customer extends AuditableEntity {
 	private Integer age;
 	
 	@Column
-	@NotNull
 	@Past(message = "customer date of birth should be a date from past")
 	@DateTimeFormat(pattern = "yyyy-MM-dd")
 	@JsonDeserialize(using = DobDeSerializer.class)
@@ -39,6 +39,7 @@ public class Customer extends AuditableEntity {
 	private LocalDate dob;
 
 	@Column
+	@NotBlank
 	@Size(min = 10, max = 200, message = "customer's address should be between 10 to 200 characters in length")
 	private String address;
 	
