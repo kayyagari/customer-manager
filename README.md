@@ -1,3 +1,4 @@
+[![Java CI with Maven](https://github.com/kayyagari/customer-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/kayyagari/customer-manager/actions/workflows/ci.yml)
 ## Customer Manager
 A SpringBoot based REST service.
 
@@ -9,10 +10,6 @@ To execute the service, run the command `java -jar customer-api/target/customer-
 ## Design Rationale
 1. Tried to keep things as simple and clear as possible (avoided abstraction layers wherever possible, e.g there are no DTOs)
 2. Some patterns (e.g DAO) were added just for the sake of presenting how they can be used
-
-
-## What is not working
-I am still fiddling with making the Aspect trigger, (there is a clear understanding of how to get the auditing part work, but the aspect glue is getting in my way)
-
-## What was not added
-Javadoc was added where things are not obvious, rest of the places the code is self-explanatory.
+3. Audit logging has been implemented in asynchronous mode instead of AspectJ, this results in some verbose code but gives more control and it stays out of the main thread of execution)
+4. Tests have been added for both DB layer and REST API layers. The test code accross various XXXResourceTest classes contains similar looking code but it was done to keep them individually testable
+5. Javadoc was added where things are not obvious, rest of the places the code is self-explanatory
