@@ -2,7 +2,8 @@ package com.kayyagari;
 
 import static com.kayyagari.util.CustomerGenerator.generateCustomer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -11,17 +12,11 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.IntNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -29,12 +24,7 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.kayyagari.db.entities.Customer;
 import com.kayyagari.resources.CustomerResource;
 
-@AutoConfigureMockMvc
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, classes = CustomerManagerApplication.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@TestPropertySource(locations = "classpath:application-test.properties")
-@ActiveProfiles("test")
-public class CustomerServiceTest {
+public class CustomerServiceTest extends TestBase {
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -42,19 +32,25 @@ public class CustomerServiceTest {
 	@InjectMocks
 	private CustomerResource customerRes;
 
-	private ObjectMapper mapper = new ObjectMapper();
-
 	@Test
 	public void testCreateCustomer() throws Exception {
-		Customer c = generateCustomer();
-		String json = toJson(c);
+		Customer c1 = generateCustomer();
+		String c1Json = toJson(c1);
 		
-		MvcResult result = mockMvc.perform(post("/customer").contentType(MediaType.APPLICATION_JSON).content(json)).andExpect(status().isCreated()).andReturn();
-		Customer createdCustomer = parseResult(result);
+		MvcResult result = mockMvc.perform(post("/customer").contentType(MediaType.APPLICATION_JSON).content(c1Json)).andExpect(status().isCreated()).andReturn();
+		Customer createdCustomer = parseResult(result, Customer.class);
 		
 		result = mockMvc.perform(get("/customer/" + createdCustomer.getId())).andExpect(status().isOk()).andReturn();
-		Customer fetchedCustomer = parseResult(result);
+		Customer fetchedCustomer = parseResult(result, Customer.class);
 		assertEquals(createdCustomer.getName(), fetchedCustomer.getName());
+
+		Customer c2 = generateCustomer();
+		c2.setId(createdCustomer.getId());
+		String c2Json = toJson(c2);
+		
+		result = mockMvc.perform(put("/customer").contentType(MediaType.APPLICATION_JSON).content(c2Json)).andExpect(status().isOk()).andReturn();
+		Customer updatedCustomer = parseResult(result, Customer.class);
+		assertNotEquals(createdCustomer.getName(), updatedCustomer.getName());
 		
 		mockMvc.perform(delete("/customer/" + createdCustomer.getId())).andExpect(status().isOk());
 		mockMvc.perform(get("/customer/" + createdCustomer.getId())).andExpect(status().isNotFound());
@@ -62,7 +58,6 @@ public class CustomerServiceTest {
 
 	@Test
 	public void testInvalidInput() throws Exception {
-		
 		String[] names = {null, "", "    ", RandomStringUtils.randomAlphabetic(101), "1"};
 		for(String name : names) {
 			Customer c = generateCustomer();
@@ -118,18 +113,5 @@ public class CustomerServiceTest {
 		page = (ObjectNode)mapper.readTree(result.getResponse().getContentAsByteArray());
 		assertEquals(20, page.get("numberOfElements").asInt());
 		assertEquals(2, page.get("totalPages").asInt());
-	}
-
-	private String toJson(Customer c) {
-		try {
-			return mapper.writeValueAsString(c);
-		}
-		catch(Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-	
-	private Customer parseResult(MvcResult result) throws Exception {
-		return mapper.readValue(result.getResponse().getContentAsByteArray(), Customer.class);
 	}
 }

@@ -1,14 +1,10 @@
 package com.kayyagari.resources;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -24,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.kayyagari.audit.AuditAction;
+import com.kayyagari.audit.AuditLogger;
 import com.kayyagari.db.dao.CustomerDao;
 import com.kayyagari.db.entities.Customer;
 import com.kayyagari.db.repos.CustomerCrudRepository;
@@ -44,13 +42,23 @@ public class CustomerResource {
 	@Autowired
 	private CustomerPagingAndSortingRepository pagerRepo;
 
+	@Autowired
+	private AuditLogger auditLogger;
+
 	private static final Logger LOG = LoggerFactory.getLogger(CustomerResource.class);
 
 	@PostMapping
 	public ResponseEntity<Customer> createCustomer(@RequestBody @Valid Customer incoming) {
 		LOG.debug("creating a new customer");
-		Customer createdCustomer = dao.createCustomer(incoming);
-		return new ResponseEntity<Customer>(createdCustomer, HttpStatus.CREATED);
+		try {
+			Customer createdCustomer = dao.createCustomer(incoming);
+			auditLogger.logSuccess(incoming, AuditAction.CREATE);
+			return new ResponseEntity<Customer>(createdCustomer, HttpStatus.CREATED);
+		}
+		catch(RuntimeException re) {
+			auditLogger.logFailure(incoming, AuditAction.CREATE);
+			throw re;
+		}
 	}
 	
 	@GetMapping("{id}")
@@ -74,21 +82,35 @@ public class CustomerResource {
 		Optional<Customer> existingCustomer = crudRepo.findById(incoming.getId());
 		if(existingCustomer.isEmpty()) {
 			LOG.debug("no customer found with the given ID {} to update", incoming.getId());
+			auditLogger.logFailure(incoming, AuditAction.UPDATE);
 			return ResponseEntity.notFound().build(); // a custom result type is ne
 		}
 		
 		LOG.debug("updating customer with the given ID {}", incoming.getId());
-		Customer existing = existingCustomer.get();
-		BeanUtils.copyProperties(incoming, existing);
-		existing = crudRepo.save(existing);
 
-		return new ResponseEntity<Customer>(existing, HttpStatus.OK);
+		try {
+			Customer existing = existingCustomer.get();
+			dao.updateCustomer(incoming, existing);
+			auditLogger.logSuccess(incoming, AuditAction.UPDATE);
+			return new ResponseEntity<Customer>(existing, HttpStatus.OK);
+		}
+		catch(RuntimeException re) {
+			auditLogger.logFailure(incoming, AuditAction.UPDATE);
+			throw re;
+		}
 	}
 
 	@DeleteMapping("{id}")
 	public ResponseEntity<Void> deleteCustomer(@PathVariable("id") @NotNull Long id) {
 		LOG.debug("deleting cutomer with the given ID {}", id);
-		crudRepo.deleteById(id);
+		try {
+			dao.deleteCustomer(id);
+			auditLogger.logSuccess(id, AuditAction.DELETE);
+		}
+		catch(RuntimeException re) {
+			auditLogger.logFailure(id, AuditAction.DELETE);
+			throw re;
+		}
 		return ResponseEntity.ok().build();
 	}
 
@@ -98,8 +120,14 @@ public class CustomerResource {
 			@RequestParam(name = "sortField", defaultValue = "name", required = false) String sortField) {
 		PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(sortField));
 		Page<Customer> page = pagerRepo.findAll(pageRequest);
-//		List<Customer> lst = new ArrayList<Customer>();
-//		pagerRepo.findAll(pageRequest).forEach(c -> lst.add(c));
 		return ResponseEntity.ok(page);
+	}
+	
+	/**
+	 * For use by unit and integration tests only
+	 * @param dao and instance of CustomerDao
+	 */
+	public void _setDao(CustomerDao dao) {
+		this.dao = dao;
 	}
 }

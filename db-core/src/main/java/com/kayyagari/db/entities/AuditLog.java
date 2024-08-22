@@ -1,7 +1,8 @@
 package com.kayyagari.db.entities;
 
-import java.time.Instant;
+import java.sql.Timestamp;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -21,6 +22,7 @@ public class AuditLog {
 	private String action;
 	
 	/** ID of the entity */
+	@Column(name = "entityid")
 	private Long entityId; // assuming this as Long for all entities
 
 	/** request data in JSON format */
@@ -30,7 +32,8 @@ public class AuditLog {
 	@Enumerated(EnumType.STRING)
 	private OperationStatus status;
 	
-	private Instant createdOn;
+	@Column(name = "createdon")
+	private Timestamp createdOn;
 
 	public Long getId() {
 		return id;
@@ -72,11 +75,11 @@ public class AuditLog {
 		this.status = status;
 	}
 
-	public Instant getCreatedOn() {
+	public Timestamp getCreatedOn() {
 		return createdOn;
 	}
 
-	public void setCreatedOn(Instant createdOn) {
+	public void setCreatedOn(Timestamp createdOn) {
 		this.createdOn = createdOn;
 	}
 }
